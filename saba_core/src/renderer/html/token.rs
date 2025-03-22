@@ -58,10 +58,10 @@ impl HtmlTokenizer {
             match t {
                 HtmlToken::StartTag {
                     ref mut tag,
-                    self_closing:_,
+                    self_closing: _,
                     attributes: _,
                 }
-                | HtmlToken::EndTag {ref mut tag } => tag.push(c),
+                | HtmlToken::EndTag { ref mut tag } => tag.push(c),
                 _ => panic!("`latest_token` should be either StartTag or EndTag"),
             }
         }
@@ -87,11 +87,11 @@ impl HtmlTokenizer {
                 } => {
                     attributes.push(Attribute::new());
                 }
-                _ => panic!("`latest_token` should be StartTag")
+                _ => panic!("`latest_token` should be StartTag"),
             }
         }
     }
-    fn append_attribute(&mut self, c: char, is_name:bool) {
+    fn append_attribute(&mut self, c: char, is_name: bool) {
         assert!(self.latest_token.is_some());
 
         if let Some(t) = self.latest_token.as_mut() {
@@ -102,9 +102,9 @@ impl HtmlTokenizer {
                     ref mut attributes,
                 } => {
                     let len = attributes.len();
-                    assert!(len>0);
+                    assert!(len > 0);
 
-                    attributes[len-1].add_char(c, is_name);
+                    attributes[len - 1].add_char(c, is_name);
                 }
                 _ => panic!("`latest_token` chould be StartTag"),
             }
@@ -180,7 +180,7 @@ impl Iterator for HtmlTokenizer {
                     if c.is_ascii_alphabetic() {
                         self.reconsume = true;
                         self.state = State::TagName;
-                        self.create_tag(false)
+                        self.create_tag(false);
                         continue;
                     }
                 }
@@ -239,7 +239,7 @@ impl Iterator for HtmlTokenizer {
                         continue;
                     }
 
-                    self.append_attribute_name(c, true);
+                    self.append_attribute(c, true);
                 }
                 State::AfterAttributeName => {
                     if c == ' ' {
@@ -361,6 +361,73 @@ impl Iterator for HtmlTokenizer {
                     if self.is_eof() {
                         return Some(HtmlToken::Eof);
                     }
+                }
+                State::ScriptData => {
+                    if c == '<' {
+                        self.state = State::ScriptDataLessThanSign;
+                        continue;
+                    }
+
+                    if self.is_eof() {
+                        return Some(HtmlToken::Eof);
+                    }
+
+                    return Some(HtmlToken::Char(c));
+                }
+                State::ScriptDataLessThanSign => {
+                    if c == '/' {
+                        self.buf = String::new();
+                        self.state = State::ScriptDataEndTagOpen;
+                        continue;
+                    }
+
+                    self.reconsume = true;
+                    self.state = State::ScriptData;
+                    return Some(HtmlToken::Char('<'));
+                }
+                State::ScriptDataEndTagOpen => {
+                    if c.is_ascii_alphabetic() {
+                        self.reconsume = true;
+                        self.state = State::ScriptDataEndTagName;
+                        self.create_tag(false);
+                        continue;
+                    }
+                    self.reconsume = true;
+                    self.state = State::ScriptData;
+                    //本来は<と/の文字トークンを返すがここでは<だけ返す
+                    return Some(HtmlToken::Char('<'));
+                }
+                State::ScriptDataEndTagName => {
+                    if c == '>' {
+                        self.state = State::Data;
+                        return self.take_latest_token();
+                    }
+                    if c.is_ascii_alphabetic() {
+                        self.buf.push(c);
+                        self.append_tag_name(c.to_ascii_lowercase());
+                        continue;
+                    }
+
+                    self.state = State::TemporaryBuffer;
+                    self.buf = String::from("</") + &self.buf;
+                    self.buf.push(c);
+                    continue;
+                }
+                State::TemporaryBuffer => {
+                    self.reconsume = true;
+
+                    if self.buf.chars().count() == 0 {
+                        self.state = State::ScriptData;
+                        continue;
+                    }
+
+                    let c = self
+                        .buf
+                        .chars()
+                        .nth(0)
+                        .expect("self.buf should have at least 1 char");
+                    self.buf.remove(0);
+                    return Some(HtmlToken::Char(c));
                 }
                 _ => {}
             }
