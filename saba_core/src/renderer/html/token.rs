@@ -73,6 +73,8 @@ impl HtmlTokenizer {
         let t = self.latest_token.as_ref().cloned();
         self.latest_token = None;
         assert!(self.latest_token.is_none());
+
+        t
     }
 
     fn start_new_attribute(&mut self) {
@@ -429,7 +431,6 @@ impl Iterator for HtmlTokenizer {
                     self.buf.remove(0);
                     return Some(HtmlToken::Char(c));
                 }
-                _ => {}
             }
         }
     }
@@ -449,6 +450,7 @@ pub enum HtmlToken {
     Eof,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum State {
     Data,
     TagOpen,
