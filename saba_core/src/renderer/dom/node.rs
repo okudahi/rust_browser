@@ -7,11 +7,24 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum NodeKind {
     Document,
     Element(Element),
     Text(String),
+}
+
+impl PartialEq for NodeKind {
+    fn eq(&self, other: &Self) -> bool {
+        match &self {
+            NodeKind::Document => matches!(other, NodeKind::Document),
+            NodeKind::Element(e1) => match &other {
+                NodeKind::Element(e2) => e1.kind == e2.kind,
+                _ => false,
+            },
+            NodeKind::Text(_) => matches!(other, NodeKind::Text(_)),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -21,6 +34,10 @@ pub enum ElementKind {
     Style,
     Script,
     Body,
+    P, //段落
+    H1,
+    H2,
+    A, //リンクタグ
 }
 
 impl FromStr for ElementKind {
@@ -33,6 +50,10 @@ impl FromStr for ElementKind {
             "style" => Ok(ElementKind::Style),
             "script" => Ok(ElementKind::Script),
             "body" => Ok(ElementKind::Body),
+            "p" => Ok(ElementKind::P),
+            "h1" => Ok(ElementKind::H1),
+            "h2" => Ok(ElementKind::H2),
+            "a" => Ok(ElementKind::A),
             _ => Err(format!("unimplemented element name {:?}", s)),
         }
     }
@@ -53,15 +74,15 @@ impl Window {
             .document
             .borrow_mut()
             .set_window(Rc::downgrade(&Rc::new(RefCell::new(window.clone()))));
-        wondow
+        window
     }
 
-    pub fn document(&self) -> Rc<Refcell<Node>> {
+    pub fn document(&self) -> Rc<RefCell<Node>> {
         self.document.clone()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Element {
     kind: ElementKind,
     attributes: Vec<Attribute>,
@@ -81,6 +102,7 @@ impl Element {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Node {
     pub kind: NodeKind,
     window: Weak<RefCell<Window>>,
@@ -89,6 +111,12 @@ pub struct Node {
     last_child: Weak<RefCell<Node>>,
     previous_sibling: Weak<RefCell<Node>>,
     next_sibling: Option<Rc<RefCell<Node>>>,
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
 }
 
 impl Node {
