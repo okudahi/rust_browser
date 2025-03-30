@@ -1,4 +1,5 @@
 use crate::constants::CONTENT_AREA_WIDTH;
+use crate::display_item::DisplayItem;
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::dom::api::get_target_element_node;
 use crate::renderer::dom::node::ElementKind;
