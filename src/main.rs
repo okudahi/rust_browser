@@ -75,11 +75,14 @@ fn handle_url(url: String) -> Result<HttpResponse, Error> {
 }
 
 fn main() -> u64 {
+    // Browser構造体を初期化
     let browser = Browser::new();
 
+    // WasabiUI構造体を初期化
     let ui = Rc::new(RefCell::new(WasabiUI::new(browser)));
 
-    match ui.borrow_mut().start() {
+    // アプリの実行を開始
+    match ui.borrow_mut().start(handle_url) {
         Ok(_) => {}
         Err(e) => {
             println!("browser fails to start {:?}", e);
